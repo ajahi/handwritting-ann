@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwritten Digit Recognition</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        canvas {
+            border: 2px solid white;
+            background-color: black;
+            width: 250px; /* Display size */
+            height: 250px; /* Display size */
+        }
+        .buttons {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 0 10px;
+        }
+        .probabilities {
+            margin-top: 20px;
+        }
+        .probabilities table {
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 300px;
+        }
+        .probabilities th, .probabilities td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .probabilities th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Draw a Digit (0-9)</h1>
+    <canvas id="canvas" width="28" height="28"></canvas>
+    <div class="buttons">
+        <button onclick="clearCanvas()">Clear</button>
+        <button onclick="predictDigit()">Predict</button>
+    </div>
+    <div id="result"></div>
+    <div class="probabilities">
+        <table>
+            <thead>
+                <tr>
+                    <th>Digit</th>
+                    <th>Probability</th>
+                </tr>
+            </thead>
+            <tbody id="probabilities-body">
+                <!-- Probabilities will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'black'; // Set background to white
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'white'; // Draw in black
+        ctx.lineWidth = 2; // Adjust line width for visibility
+        ctx.lineCap = 'round';
+        let isDrawing = false;
+
+        // Get the canvas position relative to the page
+        const canvasRect = canvas.getBoundingClientRect();
+
+        // Set up drawing
+        canvas.addEventListener('mousedown', (event) => {
+            isDrawing = true;
+            ctx.beginPath();
+            const x = (event.clientX - canvasRect.left) * (canvas.width / canvasRect.width);
+            const y = (event.clientY - canvasRect.top) * (canvas.height / canvasRect.height);
+            ctx.moveTo(x, y);
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (!isDrawing) return;
+            const x = (event.clientX - canvasRect.left) * (canvas.width / canvasRect.width);
+            const y = (event.clientY - canvasRect.top) * (canvas.height / canvasRect.height);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        });
+
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+
+        // Clear the canvas
+        function clearCanvas() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Predict the digit
+        async function predictDigit() {
+            // Get the pixel data from the canvas
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = [];
+
+            // Extract binary pixel values (black or white)
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const r = imageData.data[i];      // Red channel
+                const g = imageData.data[i + 1];  // Green channel
+                const b = imageData.data[i + 2];  // Blue channel
+                const isBlack = (r + g + b) === 0; // Check if the pixel is black
+                pixels.push(isBlack ? 0 : 255); // Black as 255, White as 0
+            }
+
+            // Normalize the pixel values for the model
+            const normalizedPixels = pixels.map(p => p / 255.0);
+            console.log(normalizedPixels);
+
+            const formData = new URLSearchParams();
+            formData.append('pixels', normalizedPixels.join(','));
+
+            // Send the POST request with form data
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData,
+            });
+
+            // Handle the response from the backend
+            const result = await response.json();
+            document.getElementById('result').innerText = `Predicted Digit: ${result.predicted_digit}`;
+
+            // Display the probabilities in the table
+            const probabilitiesBody = document.getElementById('probabilities-body');
+            probabilitiesBody.innerHTML = ''; // Clear previous results
+            result.probabilities.forEach(([index, probability]) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index}</td><td>${(probability * 100).toFixed(2)}%</td>`;
+                probabilitiesBody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>
