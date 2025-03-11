@@ -73,7 +73,7 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = 'white'; // Draw in black
         ctx.lineWidth = 2; // Adjust line width for visibility
-        ctx.lineCap = 'round';
+        ctx.lineCap = 'square';
         let isDrawing = false;
 
         // Get the canvas position relative to the page
@@ -111,14 +111,23 @@
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const pixels = [];
 
-            // Extract binary pixel values (black or white)
             for (let i = 0; i < imageData.data.length; i += 4) {
                 const r = imageData.data[i];      // Red channel
                 const g = imageData.data[i + 1];  // Green channel
                 const b = imageData.data[i + 2];  // Blue channel
-                const isBlack = (r + g + b) === 0; // Check if the pixel is black
-                pixels.push(isBlack ? 0 : 255); // Black as 255, White as 0
+                const a = imageData.data[i + 3];  // Alpha channel
+
+                // Check if the pixel is fully transparent
+                if (a === 0) {
+                    pixels.push(0); // Treat transparent pixels as black (0)
+                } else {
+                    // Calculate grayscale value
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                    // Normalize the grayscale value to the range [0, 1]
+                    pixels.push(gray / 1);
+                }
             }
+
 
             // Normalize the pixel values for the model
             const normalizedPixels = pixels.map(p => p / 255.0);
