@@ -124,10 +124,12 @@
                     // Calculate grayscale value
                     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
                     // Normalize the grayscale value to the range [0, 1]
-                    pixels.push(gray / 1);
+                    
+                    pixels.push(gray );
                 }
+                
             }
-
+            console.log("none",pixels);
 
             // Normalize the pixel values for the model
             const normalizedPixels = pixels.map(p => p / 255.0);
